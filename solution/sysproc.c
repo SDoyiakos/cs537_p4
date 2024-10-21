@@ -89,3 +89,27 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// Sets the ticket amount to the specified value
+int sys_settickets(void) {
+	int tickets_val;
+
+	// Error condition
+	if(argint(0, &tickets_val) == -1) {
+		return -1;
+	}
+
+	// Error condition
+	if(tickets_val < 1) {
+		return -1;
+	}
+
+	// Success condition
+	myproc()->tickets = tickets_val;	
+	return 0;
+}
+
+// Placeholder for getpinfo
+int sys_getpinfo(void) {
+	return 0;
+}
