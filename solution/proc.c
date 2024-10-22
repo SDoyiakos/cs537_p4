@@ -7,6 +7,12 @@
 #include "proc.h"
 #include "spinlock.h"
 
+#ifdef STRIDE
+uint global_tickets;
+uint global_stride;
+uint global_pass;
+#endif
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
@@ -112,8 +118,12 @@ found:
   memset(p->context, 0, sizeof *p->context);
   p->context->eip = (uint)forkret;
 
-  // 
-
+  // Initialize stride sched vals
+  p->tickets = 8;
+  p->pass = 0;
+  p->stride = STRIDE1 / p->tickets;
+  p->total_runtime = 0;
+  p->remain = 0;
 
   return p;
 }
@@ -314,6 +324,10 @@ wait(void)
   }
 }
 
+
+
+// ROUND ROBIN SCHEDULER
+#ifdef RR
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -346,17 +360,63 @@ scheduler(void)
       switchuvm(p);
       p->state = RUNNING;
 
-      swtch(&(c->scheduler), p->context);
+      swtch(&(c->scheduler), p->context); // Context switch
       switchkvm();
 
       // Process is done running for now.
-      // It should have changed its p->state before coming back.
+      // It should have changed its p->state before coming back.      
       c->proc = 0;
     }
     release(&ptable.lock);
 
   }
 }
+
+// STRIDE SCHEDULER
+#elif defined(STRIDE)
+void scheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+  c->proc = 0;
+
+  // Globals to help ensure fairness
+  uint global_tickets;
+  uint global_stride;
+  uint global_pass;
+  
+  for(;;){
+    // Enable interrupts on this processor.
+    sti();
+
+	 p = strideSearch(ptable);
+	 if(p == 0) { // If nothing to be scheduled
+	 	continue;
+	 }
+ 	
+   // Switch to chosen process.  It is the process's job
+   // to release ptable.lock and then reacquire it
+   // before jumping back to us.
+   c->proc = p;
+   switchuvm(p);
+   p->state = RUNNING;
+
+   swtch(&(c->scheduler), p->context); // Context switch
+   switchkvm();
+
+   // Process is done running for now.
+   // It should have changed its p->state before coming back. 
+   p->pass += p->stride;
+   p->total_runtime++;
+
+        
+   c->proc = 0;
+  }
+}
+
+#endif
+
+
 
 // Enter scheduler.  Must hold only ptable.lock
 // and have changed proc->state. Saves and restores
@@ -534,4 +594,36 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+struct proc* strideSearch(void) {
+	struct proc* ret_proc = 0;
+	struct proc* p;
+	acquire(&ptable.lock);
+	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+		if(ret_proc == 0 && p->state == RUNNABLE) { // Set first val to first in arr that can run
+			ret_proc = p;
+		}
+		else if(p->state == RUNNABLE) {			
+			if(p->pass < ret_proc->pass) { // If found another with smaller pass
+				ret_proc = p;
+			}
+			else if(p->pass == ret_proc->pass) { // If same pass
+				if(p->total_runtime < ret_proc->total_runtime) {
+					ret_proc = p;
+				}
+				else if(p->total_runtime == ret_proc->total_runtime) { // If same total runtime
+					if(p->pid < ret_proc->pid) {
+						ret_proc = p;
+					}
+				}
+			}	
+		}
+	}
+	release(&ptable.lock);
+	return ret_proc;
+}
+
+void updateStrideGlobals(void) {
+	
 }

@@ -38,7 +38,9 @@ enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 struct proc {
   uint tickets;				   // The number of ticks the process runs for
   uint stride;				   // Stride value of the process
-  uint pass;				   // Counter for each process run
+  uint pass;				   // Incremented by stride. Used for priority
+  uint total_runtime;		   // Total num of ticks the process ran for
+  uint remain;
   uint sz;                     // Size of process memory (bytes)
   pde_t* pgdir;                // Page table
   char *kstack;                // Bottom of kernel stack for this process
