@@ -1,3 +1,5 @@
+#include "types.h"
+
 struct buf;
 struct context;
 struct file;
@@ -121,7 +123,6 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 struct proc* 	strideSearch(void);
-void 			updateStrideGlobals(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

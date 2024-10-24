@@ -1,4 +1,4 @@
-#define NPROC 1024
+#include "param.h"
 
 struct pstat {
   int inuse[NPROC];      // Whether this slot of the process table is in use (1 or 0)
