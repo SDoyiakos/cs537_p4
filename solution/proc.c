@@ -124,6 +124,7 @@ found:
   p->stride = STRIDE1 / p->tickets;
   p->total_runtime = 0;
   p->remain = 0;
+  p->join_flag = 0;
 
   return p;
 }

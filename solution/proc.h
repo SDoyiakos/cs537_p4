@@ -41,6 +41,7 @@ struct proc {
   uint pass;				   // Incremented by stride. Used for priority
   uint total_runtime;		   // Total num of ticks the process ran for
   uint remain;
+  uint join_flag;			   // A flag used to check if function joins the queue
   uint sz;                     // Size of process memory (bytes)
   pde_t* pgdir;                // Page table
   char *kstack;                // Bottom of kernel stack for this process
