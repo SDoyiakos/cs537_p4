@@ -34,6 +34,12 @@ struct context {
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
+
+#ifdef STRIDE 
+#define COMPETE 1
+#define NONCOMPETE 0
+#endif
+
 // Per-process state
 struct proc {
   uint tickets;				   // The number of ticks the process runs for
@@ -41,8 +47,8 @@ struct proc {
   uint pass;				   // Incremented by stride. Used for priority
   uint total_runtime;		   // Total num of ticks the process ran for
   uint remain;
-  uint join_flag;			   // A flag used to check if function joins the queue
-  uint sz;                     // Size of process memory (bytes)
+  uint compete_flag;		   // A flag used to show if proc is competing in the scheduler
+  uint sz;                     // Size of process memory (bytes)	
   pde_t* pgdir;                // Page table
   char *kstack;                // Bottom of kernel stack for this process
   enum procstate state;        // Process state
