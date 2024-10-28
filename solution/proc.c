@@ -7,11 +7,12 @@
 #include "proc.h"
 #include "spinlock.h"
 
-#ifdef STRIDE
+// Stride globals
 uint global_tickets;
 uint global_stride;
 uint global_pass;
-#endif
+extern uint ticks;
+
 
 struct {
   struct spinlock lock;
@@ -338,6 +339,12 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
+
+	#ifdef STRIDE
+	global_tickets = 0;
+	global_pass = 0;
+	global_stride = 0;
+	#endif
   
   for(;;){
     // Enable interrupts on this processor.
@@ -347,6 +354,13 @@ scheduler(void)
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE) {
+      	#ifdef STRIDE
+
+      	// Proc moved from compete to non-compete
+		if(compete_flag == 1) {
+			
+		}
+      	#endif
         continue;
 	  }
       // Switch to chosen process.  It is the process's job
@@ -364,7 +378,6 @@ scheduler(void)
       c->proc = 0;
     }
     release(&ptable.lock);
-
   }
 }
 
@@ -574,6 +587,33 @@ struct proc* strideSearch(void) {
 	return ret_proc;
 }
 
-void updateStrideGlobals(void) {
+void global_tickets_update(int delta) {
+	global_tickets+=delta;
+	if(global_tickets != 0) {
+		global_stride = STRIDE1 / global_tickets;
+	}
+	else {
+		global_stride = 0; // Avoid divide by zero
+	}
+}
+
+void global_pass_update(void) {
+	static uint last_update;
+	uint elapsed;
+	elapsed = ticks - last_update;
+	last_update += elapsed;
+
+	global_pass += global_stride * elapsed;
 	
+}
+
+void client_join(struct proc* p) {
+	global_pass_update();
+	p->pass = global_pass + p->remain;
+	global_tickets_update(p->tickets);
+}
+
+void client_leave(struct proc* p) {
+	global_pass_update();
+	p->remain = p->pass - global_pass;
 }

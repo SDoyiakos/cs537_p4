@@ -123,6 +123,11 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 struct proc* 	strideSearch(void);
+void global_tickets_update(int delta);
+void global_pass_update(void);
+void client_join(struct proc* p);
+void client_leave(struct proc* p);
+
 
 // swtch.S
 void            swtch(struct context**, struct context*);
