@@ -352,17 +352,50 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+    #ifdef STRIDE
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE) {
-      	#ifdef STRIDE
+      	
 
       	// Proc moved from compete to non-compete
-		if(compete_flag == 1) {
-			
-		}
-      	#endif
-        continue;
+		if(p->compete_flag == 1) {
+	  	client_leave(p);
+	 	p->compete_flag = 0;
+	 	}
 	  }
+	  else {
+
+	   	// Proc was not competing before
+	   	if(p->compete_flag == 0) {
+	     client_join(p);
+	     p->compete_flag = 1;
+	   	}
+	  }
+	 }
+	// Get smallest pass proc
+	p = strideSearch();
+	if(p == 0) { // No proc to run
+		continue;
+	}
+	else { // Run a proc
+
+		c->proc = p;
+		switchuvm(p);
+		p->state = RUNNING;
+		swtch(&(c->scheduler), p->context);
+		switchkvm();
+		c->proc = 0;
+
+		// Update pass info after run
+		p->pass+= p->stride;
+		p->total_runtime++;
+	}
+	#elif defined(RR)
+	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+	  if(p->state != RUNNABLE) {
+		continue;
+	  }
+	  
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
@@ -376,9 +409,15 @@ scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.      
       c->proc = 0;
+      
     }
+	#else
+	cprintf("Error, invalid scheduling policy\n");
+	exit();
+    
+    #endif
     release(&ptable.lock);
-  }
+    }
 }
 
 // Enter scheduler.  Must hold only ptable.lock
@@ -562,7 +601,6 @@ procdump(void)
 struct proc* strideSearch(void) {
 	struct proc* ret_proc = 0;
 	struct proc* p;
-	acquire(&ptable.lock);
 	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
 		if(ret_proc == 0 && p->state == RUNNABLE) { // Set first val to first in arr that can run
 			ret_proc = p;
@@ -583,7 +621,6 @@ struct proc* strideSearch(void) {
 			}	
 		}
 	}
-	release(&ptable.lock);
 	return ret_proc;
 }
 
@@ -604,7 +641,6 @@ void global_pass_update(void) {
 	last_update += elapsed;
 
 	global_pass += global_stride * elapsed;
-	
 }
 
 void client_join(struct proc* p) {

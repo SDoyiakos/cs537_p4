@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "pstat.h"
 
 int
 sys_fork(void)
@@ -111,5 +112,25 @@ int sys_settickets(void) {
 
 // Placeholder for getpinfo
 int sys_getpinfo(void) {
-	return 0;
+	struct pstat* my_stats;
+	if(argptr(0, (void*)&my_stats, sizeof(struct pstat*)) == -1) {
+		return -1;
+	}
+
+	for(int i =0; i < NPROC; i++) {
+
+		// Find open slot
+		if(my_stats->inuse[i] == 0) {
+
+			// Update pstat
+			my_stats->inuse[i] = 1;
+			my_stats->tickets[i] = myproc()->tickets;	
+			my_stats->pid[i] = myproc()->pid;
+			my_stats->remain[i] = myproc()->remain;
+			my_stats->stride[i] = myproc()->stride;
+			my_stats->rtime[i] = myproc()->total_runtime;
+			return 0;
+		}
+	}
+	return -1;
 }
