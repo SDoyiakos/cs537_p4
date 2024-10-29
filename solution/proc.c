@@ -8,11 +8,11 @@
 #include "spinlock.h"
 
 // Stride globals
-uint global_tickets;
-uint global_stride;
-uint global_pass;
+uint global_tickets = 0;
+uint global_stride = 0;
+uint global_pass = 0;
 extern uint ticks;
-
+const int STRIDE1 = 1<<10;
 
 struct {
   struct spinlock lock;
@@ -125,7 +125,7 @@ found:
   p->stride = STRIDE1 / p->tickets;
   p->total_runtime = 0;
   p->remain = 0;
-  p->compete_flag = 0; // 
+  p->compete_flag = 0; 
   return p;
 }
 
@@ -340,9 +340,6 @@ scheduler(void)
   struct cpu *c = mycpu();
   c->proc = 0;
 
-	global_tickets = 0;
-	global_pass = 0;
-	global_stride = 0;
   
   for(;;){
     // Enable interrupts on this processor.
@@ -360,8 +357,8 @@ scheduler(void)
 	 	p->compete_flag = 0;
 	 	}
 	  }
-	  else if(p->state == RUNNABLE) {
-
+	  else {
+	  
 	   	// Proc was not competing before
 	   	if(p->compete_flag == 0) {
 	     client_join(p);
@@ -377,7 +374,7 @@ scheduler(void)
 		release(&ptable.lock);
 		continue;
 	}
-	else { // Run a proc
+	else if(p->state != UNUSED) { // Run a proc
 		c->proc = p;
 		switchuvm(p);
 		
@@ -639,10 +636,10 @@ void global_tickets_update(int delta) {
 
 void global_pass_update(void) {
 	static uint last_update;
-	uint elapsed;
+	int elapsed;
 	elapsed = ticks - last_update;
 	last_update += elapsed;
-
+	
 	global_pass += global_stride * elapsed;
 }
 
