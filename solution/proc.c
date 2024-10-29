@@ -340,11 +340,9 @@ scheduler(void)
   struct cpu *c = mycpu();
   c->proc = 0;
 
-	#ifdef STRIDE
 	global_tickets = 0;
 	global_pass = 0;
 	global_stride = 0;
-	#endif
   
   for(;;){
     // Enable interrupts on this processor.
@@ -356,14 +354,13 @@ scheduler(void)
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE) {
       	
-
       	// Proc moved from compete to non-compete
 		if(p->compete_flag == 1) {
 	  	client_leave(p);
 	 	p->compete_flag = 0;
 	 	}
 	  }
-	  else {
+	  else if(p->state == RUNNABLE) {
 
 	   	// Proc was not competing before
 	   	if(p->compete_flag == 0) {
@@ -372,24 +369,28 @@ scheduler(void)
 	   	}
 	  }
 	 }
+	 
 	// Get smallest pass proc
 	p = strideSearch();
+	
 	if(p == 0) { // No proc to run
+		release(&ptable.lock);
 		continue;
 	}
 	else { // Run a proc
-
 		c->proc = p;
 		switchuvm(p);
+		
 		p->state = RUNNING;
+		p->pass+=p->stride;
+		p->total_runtime++;
+		
 		swtch(&(c->scheduler), p->context);
 		switchkvm();
 		c->proc = 0;
 
-		// Update pass info after run
-		p->pass+= p->stride;
-		p->total_runtime++;
 	}
+	
 	#elif defined(RR)
 	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
 	  if(p->state != RUNNABLE) {
@@ -599,10 +600,11 @@ procdump(void)
 }
 
 struct proc* strideSearch(void) {
-	struct proc* ret_proc = 0;
+	struct proc* ret_proc = (void*)0;
 	struct proc* p;
 	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
-		if(ret_proc == 0 && p->state == RUNNABLE) { // Set first val to first in arr that can run
+	
+		if(ret_proc == (void*)0 && p->state == RUNNABLE) { // Set first val to first in arr that can run
 			ret_proc = p;
 		}
 		else if(p->state == RUNNABLE) {			
@@ -652,4 +654,5 @@ void client_join(struct proc* p) {
 void client_leave(struct proc* p) {
 	global_pass_update();
 	p->remain = p->pass - global_pass;
+	global_tickets_update(-1 * p->tickets);	
 }
