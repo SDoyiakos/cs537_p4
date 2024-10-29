@@ -1,4 +1,5 @@
 #include "types.h"
+#include "pstat.h"
 
 struct buf;
 struct context;
@@ -127,6 +128,8 @@ void global_tickets_update(int delta);
 void global_pass_update(void);
 void client_join(struct proc* p);
 void client_leave(struct proc* p);
+int getpinfo(struct pstat* my_stats);
+int settickets(int new_tickets);
 
 
 // swtch.S

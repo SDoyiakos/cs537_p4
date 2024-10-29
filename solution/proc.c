@@ -382,11 +382,12 @@ scheduler(void)
 		switchuvm(p);
 		
 		p->state = RUNNING;
-		p->pass+=p->stride;
-		p->total_runtime++;
 		
 		swtch(&(c->scheduler), p->context);
 		switchkvm();
+
+		p->pass+=p->stride;
+		p->total_runtime++;
 		c->proc = 0;
 
 	}
@@ -655,4 +656,40 @@ void client_leave(struct proc* p) {
 	global_pass_update();
 	p->remain = p->pass - global_pass;
 	global_tickets_update(-1 * p->tickets);	
+}
+
+int getpinfo(struct pstat* my_stats) {
+	struct proc* curr_proc;
+	acquire(&ptable.lock);
+	for(int i = 0; i < NPROC;i++) {
+				curr_proc = &(ptable.proc[i]);
+		if(curr_proc->state != UNUSED) {
+			my_stats->inuse[i] = 1;
+			my_stats->tickets[i] = curr_proc->tickets;
+			my_stats->pid[i] = curr_proc->pid;
+			my_stats->pass[i] = curr_proc->pass;
+			my_stats->remain[i] = curr_proc->remain;
+			my_stats->stride[i] = curr_proc->stride;
+			my_stats->rtime[i] = curr_proc->total_runtime;
+		}
+		else {
+			my_stats->inuse[i] = 0;
+		}
+	}
+	release(&ptable.lock);
+	return 0;
+}
+
+
+int settickets(int new_tickets) { 
+
+	// Updating pass val
+	myproc()->remain = myproc()->pass - global_pass;
+	myproc()->remain = myproc()->remain * (new_tickets/myproc()->tickets);
+
+	
+	myproc()->tickets = new_tickets; // Update tickets
+	myproc()->stride = STRIDE1 / myproc()->tickets; // Update stride
+	myproc()->pass = global_pass + myproc()->remain; // Update pass
+	return 0;
 }
