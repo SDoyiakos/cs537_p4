@@ -92,6 +92,7 @@ sys_uptime(void)
 
 // Sets the ticket amount to the specified value
 int sys_settickets(void) {
+	#ifdef STRIDE
 	int tickets_val;
 
 	// Error condition
@@ -104,6 +105,9 @@ int sys_settickets(void) {
 		return -1;
 	}
 	return settickets(tickets_val);
+	#else
+	return 0;
+	#endif
 }
 
 // Placeholder for getpinfo

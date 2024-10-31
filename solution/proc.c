@@ -8,9 +8,9 @@
 #include "spinlock.h"
 
 // Stride globals
-uint global_tickets = 0;
-uint global_stride = 0;
-uint global_pass = 0;
+int global_tickets = 0;
+int global_stride = 0;
+int global_pass = 0;
 extern uint ticks;
 const int STRIDE1 = 1<<10;
 
@@ -124,7 +124,7 @@ found:
   p->pass = 0;
   p->stride = STRIDE1 / p->tickets;
   p->total_runtime = 0;
-  p->remain = 0;
+  p->remain = 8;
   p->compete_flag = 0; 
   return p;
 }
@@ -161,8 +161,10 @@ userinit(void)
   // writes to be visible, and the lock is also needed
   // because the assignment might not be atomic.
   acquire(&ptable.lock);
-
   p->state = RUNNABLE;
+  #ifdef STRIDE
+  client_join(p);
+  #endif
 
   release(&ptable.lock);
 }
@@ -227,9 +229,10 @@ fork(void)
   pid = np->pid;
 
   acquire(&ptable.lock);
-
   np->state = RUNNABLE;
-
+  #ifdef STRIDE
+  client_join(np);
+  #endif 
   release(&ptable.lock);
 
   return pid;
@@ -276,6 +279,9 @@ exit(void)
   }
 
   // Jump into the scheduler, never to return.
+  #ifdef STRIDE
+  client_leave(curproc);
+  #endif
   curproc->state = ZOMBIE;
   sched();
   panic("zombie exit");
@@ -348,24 +354,6 @@ scheduler(void)
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     #ifdef STRIDE
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE) {
-      	
-      	// Proc moved from compete to non-compete
-		if(p->compete_flag == 1) {
-	  	client_leave(p);
-	 	p->compete_flag = 0;
-	 	}
-	  }
-	  else {
-	  
-	   	// Proc was not competing before
-	   	if(p->compete_flag == 0) {
-	     client_join(p);
-	     p->compete_flag = 1;
-	   	}
-	  }
-	 }
 	 
 	// Get smallest pass proc
 	p = strideSearch();
@@ -374,7 +362,7 @@ scheduler(void)
 		release(&ptable.lock);
 		continue;
 	}
-	else if(p->state != UNUSED) { // Run a proc
+	else { // Run a proc
 		c->proc = p;
 		switchuvm(p);
 		
@@ -383,8 +371,9 @@ scheduler(void)
 		swtch(&(c->scheduler), p->context);
 		switchkvm();
 
-		p->pass+=p->stride;
-		p->total_runtime++;
+		c->proc->pass+=p->stride;
+		c->proc->total_runtime++;
+
 		c->proc = 0;
 
 	}
@@ -406,7 +395,8 @@ scheduler(void)
       switchkvm();
 
       // Process is done running for now.
-      // It should have changed its p->state before coming back.      
+      // It should have changed its p->state before coming back.  
+      c->proc->total_runtime++;    
       c->proc = 0;
       
     }
@@ -502,6 +492,9 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   p->chan = chan;
   p->state = SLEEPING;
+  #ifdef STRIDE
+  client_leave(p);
+  #endif
 
   sched();
 
@@ -524,8 +517,12 @@ wakeup1(void *chan)
   struct proc *p;
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+    if(p->state == SLEEPING && p->chan == chan) {
       p->state = RUNNABLE;
+      #ifdef STRIDE
+      client_join(p);
+      #endif
+    }
 }
 
 // Wake up all processes sleeping on chan.
@@ -550,8 +547,12 @@ kill(int pid)
     if(p->pid == pid){
       p->killed = 1;
       // Wake process from sleep if necessary.
-      if(p->state == SLEEPING)
-        p->state = RUNNABLE;
+      if(p->state == SLEEPING) {
+      	p->state = RUNNABLE;
+      	#ifdef STRIDE
+      	client_join(p);
+      	#endif
+      }
       release(&ptable.lock);
       return 0;
     }
@@ -598,11 +599,11 @@ procdump(void)
 }
 
 struct proc* strideSearch(void) {
-	struct proc* ret_proc = (void*)0;
+	struct proc* ret_proc = 0;
 	struct proc* p;
 	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
 	
-		if(ret_proc == (void*)0 && p->state == RUNNABLE) { // Set first val to first in arr that can run
+		if(ret_proc == 0 && p->state == RUNNABLE) { // Set first val to first in arr that can run
 			ret_proc = p;
 		}
 		else if(p->state == RUNNABLE) {			
@@ -679,14 +680,26 @@ int getpinfo(struct pstat* my_stats) {
 
 
 int settickets(int new_tickets) { 
-
-	// Updating pass val
-	myproc()->remain = myproc()->pass - global_pass;
-	myproc()->remain = myproc()->remain * (new_tickets/myproc()->tickets);
-
 	
-	myproc()->tickets = new_tickets; // Update tickets
-	myproc()->stride = STRIDE1 / myproc()->tickets; // Update stride
-	myproc()->pass = global_pass + myproc()->remain; // Update pass
+	int new_remain;
+	int new_stride;
+
+	acquire(&ptable.lock);
+	client_leave(myproc());
+
+	// Compute new stride
+	new_stride = STRIDE1 / new_tickets;
+
+	// Scale remaining passes to reflect change in stride
+	new_remain = (myproc()->remain * new_stride) / myproc()->stride;
+
+	// Update client state
+	myproc()->tickets = new_tickets;
+	myproc()->stride = new_stride;
+	myproc()->remain = new_remain;
+
+	client_join(myproc());
+	release(&ptable.lock);
+
 	return 0;
 }
