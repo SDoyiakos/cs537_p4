@@ -124,7 +124,7 @@ found:
   p->pass = 0;
   p->stride = STRIDE1 / p->tickets;
   p->total_runtime = 0;
-  p->remain = 8;
+  p->remain = p->stride;
   p->compete_flag = 0; 
   return p;
 }
