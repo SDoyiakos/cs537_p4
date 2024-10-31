@@ -101,8 +101,11 @@ int sys_settickets(void) {
 	}
 
 	// Error condition
-	if(tickets_val < 1 || tickets_val > (1<<5)) {
-		return -1;
+	if(tickets_val < 1) {
+		return settickets(8);
+	}
+	else if(tickets_val > (1<<5)) {
+		return settickets(32);
 	}
 	return settickets(tickets_val);
 	#else
