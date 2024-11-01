@@ -5,7 +5,7 @@ ID: 908-322-2274
 Status: Complete & Functioning
 
 
-Implementation: 
+# Implementation: 
 
 [Modularity]
 The scheduler is run in a modular fashion via the use of ifdef. We use #ifdef STRIDE which causes
@@ -38,7 +38,7 @@ For each run of the scheduler, the job with the lowest passes is chosen. The cho
 
 	
 		
-Observed Scheduler Behaviors:
+# Observed Scheduler Behaviors:
 
 [Stride Scheduler]
 	- The stride scheduler runs each job with a frequency in proportion to its tickets. This means that over a given time fram, a job with 8 tickets will run 4x as much as a job with 2 tickets does.
