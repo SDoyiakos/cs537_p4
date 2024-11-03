@@ -11,7 +11,7 @@
 int global_tickets = 0;
 int global_stride = 0;
 int global_pass = 0;
-extern uint ticks;
+uint d_ticks;
 const int STRIDE1 = 1<<10;
 
 struct {
@@ -190,6 +190,10 @@ growproc(int n)
   return 0;
 }
 
+
+//TODO: WHAT ABOUT EXEC??
+
+
 // Create a new process copying p as the parent.
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
@@ -364,19 +368,27 @@ scheduler(void)
 	}
 	else { // Run a proc
 		c->proc = p;
+
+    c->proc->pass+=p->stride;
+		c->proc->total_runtime++;
+
+
 		switchuvm(p);
 		
 		p->state = RUNNING;
+  
 		
 		swtch(&(c->scheduler), p->context);
 		switchkvm();
 
-		c->proc->pass+=p->stride;
-		c->proc->total_runtime++;
+   
+
+	
 
 		c->proc = 0;
 
 	}
+  d_ticks++;
 	
 	#elif defined(RR)
 	for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -638,7 +650,8 @@ void global_tickets_update(int delta) {
 void global_pass_update(void) {
 	static uint last_update;
 	int elapsed;
-	elapsed = ticks - last_update;
+	elapsed = d_ticks - last_update;
+  // cprintf("last_update %d \n", last_update);
 	last_update += elapsed;
 	
 	global_pass += global_stride * elapsed;
