@@ -11,7 +11,7 @@
 int global_tickets = 0;
 int global_stride = 0;
 int global_pass = 0;
-extern uint ticks;
+int sched_ticks = 0;
 const int STRIDE1 = 1<<10;
 
 struct {
@@ -348,9 +348,10 @@ scheduler(void)
 
   
   for(;;){
+  	sched_ticks++;
     // Enable interrupts on this processor.
     sti();
-
+	
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     #ifdef STRIDE
@@ -369,6 +370,7 @@ scheduler(void)
 		p->state = RUNNING;
 		c->proc->pass+=p->stride;
 		c->proc->total_runtime++;
+		
 		swtch(&(c->scheduler), p->context);
 		switchkvm();
 
@@ -636,9 +638,9 @@ void global_tickets_update(int delta) {
 }
 
 void global_pass_update(void) {
-	static uint last_update;
+	static uint last_update = 0;
 	int elapsed;
-	elapsed = ticks - last_update;
+	elapsed = sched_ticks - last_update;
 	last_update += elapsed;
 	
 	global_pass += global_stride * elapsed;
