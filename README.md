@@ -40,10 +40,10 @@ For each run of the scheduler, the job with the lowest passes is chosen. The cho
 # Observed Scheduler Behaviors:
 
 ## Stride Scheduler
-	- The stride scheduler runs each job with a frequency in proportion to its tickets. This means that over a given time fram, a job with 8 tickets will run 4x as much as a job with 2 tickets does.
-	- One observed behavior is that the job which represents workload tends to be favored to a greater degree than its tickets would imply. This is because the workload job is consistently sleeping and accumulates a greater remain
-	value over time, leading it to be favored in later runs
+	- The stride scheduler runs each job with a frequency in proportion to its tickets. This means that over a given time frame
+		, a job with 8 tickets will run 4x as much as a job with 2 tickets does.
 	- The stride scheduler runs at a vastly greater speed than the round robin scheduler
+	- Overall, the stride scheduler tends to handle workloads faster than the round robin scheduler
 
 ## Round Robin Scheduler
 	- The round robin scheduler runs every job in the order in which it is found in the ptable 
