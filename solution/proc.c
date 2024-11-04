@@ -367,12 +367,12 @@ scheduler(void)
 		switchuvm(p);
 		
 		p->state = RUNNING;
-		
+		c->proc->pass+=p->stride;
+		c->proc->total_runtime++;
 		swtch(&(c->scheduler), p->context);
 		switchkvm();
 
-		c->proc->pass+=p->stride;
-		c->proc->total_runtime++;
+		
 
 		c->proc = 0;
 
