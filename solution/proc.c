@@ -369,6 +369,7 @@ scheduler(void)
 		p->state = RUNNING;
 		c->proc->pass+=p->stride;
 		c->proc->total_runtime++;
+		global_pass+=global_stride;
 		swtch(&(c->scheduler), p->context);
 		switchkvm();
 
@@ -645,13 +646,11 @@ void global_pass_update(void) {
 }
 
 void client_join(struct proc* p) {
-	global_pass_update();
 	p->pass = global_pass + p->remain;
 	global_tickets_update(p->tickets);
 }
 
 void client_leave(struct proc* p) {
-	global_pass_update();
 	p->remain = p->pass - global_pass;
 	global_tickets_update(-1 * p->tickets);	
 }
